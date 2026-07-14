@@ -22,6 +22,7 @@ class Roles
 
             'Manager' => [
                 'employees.view',
+                'work.log.submit', 'work.logs.view.all', 'work.logs.manage',
                 'hrms.view', 'hrms.leave.approve',
                 'tasks.view', 'tasks.manage', 'tasks.assign',
                 'contacts.view', 'contacts.view.all', 'contacts.manage',
@@ -36,6 +37,7 @@ class Roles
             ],
 
             'Salesperson' => [
+                'work.log.submit',
                 'tasks.view', 'tasks.manage',
                 'contacts.view', 'contacts.manage',
                 'leads.view', 'leads.manage', 'leads.export',
@@ -48,6 +50,7 @@ class Roles
             ],
 
             'Tech Writer' => [
+                'work.log.submit',
                 'tasks.view',
                 'contacts.view',
                 'content.articles.view', 'content.articles.submit', 'content.articles.write',
@@ -55,6 +58,7 @@ class Roles
             ],
 
             'Tech Lead' => [
+                'work.log.submit', 'work.logs.view.all',
                 'tasks.view', 'tasks.manage', 'tasks.assign',
                 'contacts.view', 'contacts.view.all',
                 'content.articles.view', 'content.articles.submit', 'content.articles.write',
@@ -63,6 +67,7 @@ class Roles
             ],
 
             'Support Agent' => [
+                'work.log.submit',
                 'tasks.view',
                 'contacts.view',
                 'support.view', 'support.handle',
@@ -71,10 +76,12 @@ class Roles
             'HR' => [
                 'employees.view',
                 'hrms.view', 'hrms.attendance.manage', 'hrms.leave.manage', 'hrms.leave.approve', 'hrms.payroll.manage',
+                'work.log.submit', 'work.logs.view.all', 'work.logs.manage',
                 'tasks.view',
             ],
 
             'Accountant' => [
+                'work.log.submit',
                 'contacts.view', 'contacts.view.all',
                 'leads.view.all',
                 'sales.reports.view.all',

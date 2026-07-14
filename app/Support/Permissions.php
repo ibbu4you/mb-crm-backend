@@ -31,6 +31,9 @@ class Permissions
                     'hrms.leave.manage' => 'Manage leave requests',
                     'hrms.leave.approve' => 'Approve / reject leave',
                     'hrms.payroll.manage' => 'Manage payroll & payslips',
+                    'work.log.submit' => 'Log own hourly work status',
+                    'work.logs.view.all' => 'View everyone’s work activity',
+                    'work.logs.manage' => 'Edit / remove work logs',
                 ],
             ],
             'tasks' => [

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AlertNumberController;
 use App\Http\Controllers\Api\AppSettingsController;
 use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\WorkLogController;
 use App\Http\Controllers\Api\GeocodeController;
 use App\Http\Controllers\Api\OfficeLocationController;
 use App\Http\Controllers\Api\ArticleAssetController;
@@ -245,6 +246,18 @@ Route::prefix('v1')->group(function () {
         Route::post('attendance/check-in', [AttendanceController::class, 'checkIn']);
         Route::post('attendance/check-out', [AttendanceController::class, 'checkOut']);
         Route::get('office-locations', [OfficeLocationController::class, 'index']);
+
+        // --- Work status (hourly self-logging for every employee) ---
+        Route::get('work/today', [WorkLogController::class, 'today']);
+        Route::get('work/logs', [WorkLogController::class, 'index']);
+        Route::post('work/logs', [WorkLogController::class, 'store'])->middleware('permission:work.log.submit');
+        Route::get('work/link-options', [WorkLogController::class, 'linkOptions'])->middleware('permission:work.log.submit');
+        Route::middleware('permission:work.logs.view.all')->group(function () {
+            Route::get('work/board', [WorkLogController::class, 'board']);
+            Route::get('work/report', [WorkLogController::class, 'report']);
+            Route::get('work/report/export', [WorkLogController::class, 'export']);
+        });
+        Route::middleware('permission:work.logs.manage')->delete('work/logs/{workLog}', [WorkLogController::class, 'destroy']);
 
         // Leave — self-service (every employee)
         Route::get('leaves/catalog', [LeaveController::class, 'catalog']);
