@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AlertNumberController;
 use App\Http\Controllers\Api\AppSettingsController;
 use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\SpotlightController;
 use App\Http\Controllers\Api\WorkLogController;
 use App\Http\Controllers\Api\GeocodeController;
 use App\Http\Controllers\Api\OfficeLocationController;
@@ -56,6 +57,8 @@ Route::prefix('v1')->group(function () {
 
     // --- Public lead intake (web/Elementor forms) — throttled ---
     Route::post('public/leads', [LeadIntakeController::class, 'store'])->middleware('throttle:30,1');
+    // --- Public "Get Featured" / Free Spotlight landing-page intake — throttled ---
+    Route::post('public/spotlight', [SpotlightController::class, 'store'])->middleware('throttle:20,1');
 
     // --- WhatsApp webhook (Meta) — public, signature-verified ---
     Route::get('whatsapp/webhook', [WhatsAppWebhookController::class, 'verify']);

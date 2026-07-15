@@ -13,11 +13,12 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
+    'allowed_origins' => array_values(array_filter([
         env('FRONTEND_URL', 'http://localhost:5173'),
+        env('LANDING_URL'), // public "Get Featured" landing page
         'http://localhost:5173',
         'http://127.0.0.1:5173',
-    ],
+    ])),
 
     'allowed_origins_patterns' => [
         // Allow testing on a phone over the LAN (http://192.168.x.x:5173)
