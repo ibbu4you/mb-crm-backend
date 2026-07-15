@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\FlowEngineService;
 use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class WhatsAppWebhookController extends Controller
 {
@@ -22,21 +23,65 @@ class WhatsAppWebhookController extends Controller
         return response('Forbidden', 403);
     }
 
-    /** Inbound messages (POST). Accepts the Meta Cloud payload or a simple {phone,message} test body. */
+    /**
+     * Inbound messages (POST). Accepts the Meta Cloud payload or a simple
+     * {phone,message} test body.
+     *
+     * Every outcome is logged: a dropped delivery here is otherwise completely
+     * invisible (Meta retries quietly and nothing reaches the inbox), which makes
+     * "replies aren't arriving" impossible to diagnose. Grep laravel.log for
+     * [WhatsApp] to see exactly which branch you're hitting.
+     */
     public function handle(Request $request)
     {
         if (! $this->wa->verifySignature($request->getContent(), $request->header('X-Hub-Signature-256'))) {
+            Log::warning('[WhatsApp] webhook REJECTED — signature mismatch. The app_secret in Settings does not match the Meta app.', [
+                'signature_sent' => (bool) $request->header('X-Hub-Signature-256'),
+                'ip' => $request->ip(),
+            ]);
+
             return response()->json(['message' => 'Invalid signature'], 403);
         }
 
         $messages = $this->extractMessages($request->all());
+
+        if (! $messages) {
+            // Status callbacks (sent/delivered/read) legitimately land here; so do
+            // media-only replies, which extractMessages cannot read yet.
+            Log::info('[WhatsApp] webhook OK but no readable message', [
+                'fields' => $this->payloadShape($request->all()),
+            ]);
+
+            return response()->json(['received' => 0]);
+        }
+
         foreach ($messages as [$from, $text]) {
             if ($from && $text !== null) {
+                Log::info('[WhatsApp] inbound message', ['from' => $from]);
                 $this->flow->handleIncoming($from, $text);
             }
         }
 
         return response()->json(['received' => count($messages)]);
+    }
+
+    /** Which change-fields Meta actually sent — tells statuses apart from messages. */
+    private function payloadShape(array $payload): array
+    {
+        $shape = [];
+        foreach ($payload['entry'] ?? [] as $entry) {
+            foreach ($entry['changes'] ?? [] as $change) {
+                $value = $change['value'] ?? [];
+                $shape[] = [
+                    'field' => $change['field'] ?? '?',
+                    'has_messages' => isset($value['messages']),
+                    'has_statuses' => isset($value['statuses']),
+                    'message_type' => $value['messages'][0]['type'] ?? null,
+                ];
+            }
+        }
+
+        return $shape ?: ['raw_keys' => array_keys($payload)];
     }
 
     /** @return array<int, array{0:?string,1:?string}> */
