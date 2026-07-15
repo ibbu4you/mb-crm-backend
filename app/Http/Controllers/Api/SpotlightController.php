@@ -65,22 +65,27 @@ class SpotlightController extends Controller
 
         $typeId = LeadType::firstOrCreate(['name' => 'Free Spotlight'])->id;
 
-        $meta = array_filter([
+        // Nested under `form` because that is the shape LeadDetails::fromMeta()
+        // reads — it renders the lead drawer's "Additional details" panel. A flat
+        // array here is stored but never displayed. Keys are the labels the team sees.
+        $meta = [
             'campaign' => 'free_spotlight',
-            'position' => $data['position'] ?? null,
-            'location' => $data['location'] ?? null,
-            'story' => $data['story'] ?? null,
-            'unique_story' => $data['unique_story'] ?? null,
-            'links' => $data['links'] ?? null,
-            'interview_mode' => $data['interview_mode'] ?? null,
-            'language' => $data['language'] ?? null,
-            'preferred_time' => $data['preferred_time'] ?? null,
-            'comments' => $data['comments'] ?? null,
-            'referral_name' => $data['referral_name'] ?? null,
-            'consent_coverage' => (bool) ($data['consent_coverage'] ?? false),
-            'consent_contact' => (bool) ($data['consent_contact'] ?? false),
-            'attachment_url' => $attachmentUrl,
-        ], fn ($v) => $v !== null && $v !== '');
+            'form' => array_filter([
+                'Position' => $data['position'] ?? null,
+                'Location (City, State)' => $data['location'] ?? null,
+                'Tell Us About Your Business / Story' => $data['story'] ?? null,
+                'What Makes Your Story Unique or Inspiring?' => $data['unique_story'] ?? null,
+                'Website / Social Media Links' => $data['links'] ?? null,
+                'Preferred Interview Mode' => $data['interview_mode'] ?? null,
+                'Preferred Language' => $data['language'] ?? null,
+                'Preferred Time Slot' => $data['preferred_time'] ?? null,
+                'Comments' => $data['comments'] ?? null,
+                'Referral Name' => $data['referral_name'] ?? null,
+                'Attachment' => $attachmentUrl,
+                'Consent — article coverage' => ! empty($data['consent_coverage']) ? 'Yes' : null,
+                'Consent — editorial contact' => ! empty($data['consent_contact']) ? 'Yes' : null,
+            ], fn ($v) => $v !== null && $v !== ''),
+        ];
 
         $lead = Lead::create([
             'contact_id' => $contact->id,
