@@ -64,6 +64,9 @@ class WhatsAppInboxController extends Controller
                 'direction' => $m->direction,
                 'body' => $m->body,
                 'status' => $m->status,
+                'media_type' => $m->media_type,
+                'media_url' => $m->media_url,
+                'media_name' => $m->media_name,
                 'at' => $m->created_at->toIso8601String(),
             ]);
         $convo = WhatsappConversation::where('phone', $phone)->first();
@@ -85,10 +88,22 @@ class WhatsAppInboxController extends Controller
 
     public function reply(Request $request, string $phone)
     {
-        $data = $request->validate(['body' => ['required', 'string', 'max:4096']]);
+        $data = $request->validate([
+            // body is optional when an attachment is present (it becomes the caption)
+            'body' => ['nullable', 'required_without:file', 'string', 'max:4096'],
+            'file' => ['nullable', 'file', 'max:16384', 'mimes:jpg,jpeg,png,webp,gif,mp4,3gp,pdf,doc,docx,xls,xlsx,ppt,pptx,txt'],
+        ]);
         $phone = preg_replace('/\D+/', '', $phone);
 
-        $result = $this->wa->sendText($phone, $data['body']);
+        if ($request->hasFile('file')) {
+            $file = $request->file('file');
+            $type = $this->mediaType($file->getMimeType());
+            // Meta fetches the link, so it has to be publicly reachable
+            $url = asset('storage/'.$file->store('whatsapp', 'public'));
+            $result = $this->wa->sendMedia($phone, $type, $url, $data['body'] ?? null, $file->getClientOriginalName());
+        } else {
+            $result = $this->wa->sendText($phone, $data['body']);
+        }
 
         WhatsappConversation::updateOrCreate(
             ['phone' => $phone],
@@ -99,6 +114,27 @@ class WhatsAppInboxController extends Controller
             'ok' => (bool) ($result['ok'] ?? false),
             'mock' => (bool) ($result['mock'] ?? false),
         ], 201);
+    }
+
+    /**
+     * Remove a message from the CRM log. WhatsApp has no delete-for-recipient in
+     * the Cloud API, so this only clears our record — the recipient keeps theirs.
+     */
+    public function destroyMessage(WhatsappMessage $message)
+    {
+        $message->delete();
+
+        return response()->json(['deleted' => true]);
+    }
+
+    /** Map an uploaded file's mime to the type Meta expects. */
+    private function mediaType(?string $mime): string
+    {
+        return match (true) {
+            str_starts_with((string) $mime, 'image/') => 'image',
+            str_starts_with((string) $mime, 'video/') => 'video',
+            default => 'document',
+        };
     }
 
     public function markRead(string $phone)

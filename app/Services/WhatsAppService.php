@@ -82,9 +82,56 @@ class WhatsAppService
         }
     }
 
-    public function log(string $phone, string $direction, ?string $body, ?array $payload = null, ?string $status = null): void
+    public function log(string $phone, string $direction, ?string $body, ?array $payload = null, ?string $status = null, array $media = []): void
     {
-        WhatsappMessage::create(compact('phone', 'direction', 'body', 'payload', 'status'));
+        WhatsappMessage::create(compact('phone', 'direction', 'body', 'payload', 'status') + $media);
+    }
+
+    /**
+     * Send an image / video / document by public link — Meta fetches the URL, so
+     * it must be reachable from the internet (our public storage disk is).
+     *
+     * @param  'image'|'video'|'document'  $type
+     */
+    public function sendMedia(string $phone, string $type, string $url, ?string $caption = null, ?string $filename = null): array
+    {
+        $phone = preg_replace('/\D+/', '', $phone);
+        $media = ['link' => $url];
+        if ($caption && $type !== 'document') {
+            $media['caption'] = $caption;
+        }
+        if ($type === 'document') {
+            $media['filename'] = $filename ?: 'file';
+            if ($caption) {
+                $media['caption'] = $caption;
+            }
+        }
+        $meta = ['media_type' => $type, 'media_url' => $url, 'media_name' => $filename];
+
+        if (! $this->isConfigured()) {
+            $this->log($phone, 'out', $caption, ['note' => 'not_configured'], 'not_configured', $meta);
+
+            return ['ok' => false, 'mock' => true];
+        }
+
+        $version = $this->cfg('api_version', 'v21.0');
+        $endpoint = "https://graph.facebook.com/{$version}/{$this->cfg('phone_number_id')}/messages";
+
+        try {
+            $res = Http::withToken($this->cfg('access_token'))->post($endpoint, [
+                'messaging_product' => 'whatsapp',
+                'to' => $phone,
+                'type' => $type,
+                $type => $media,
+            ]);
+            $this->log($phone, 'out', $caption, $res->json(), $res->successful() ? 'sent' : 'failed', $meta);
+
+            return ['ok' => $res->successful(), 'response' => $res->json()];
+        } catch (\Throwable $e) {
+            $this->log($phone, 'out', $caption, ['error' => $e->getMessage()], 'error', $meta);
+
+            return ['ok' => false, 'error' => $e->getMessage()];
+        }
     }
 
     // ---- Message templates (Meta is the source of truth; we mirror them read-only) ----

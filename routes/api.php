@@ -159,6 +159,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:whatsapp.send|whatsapp.manage')->group(function () {
             Route::post('whatsapp/inbox/{phone}/reply', [WhatsAppInboxController::class, 'reply']);
             Route::post('whatsapp/inbox/{phone}/read', [WhatsAppInboxController::class, 'markRead']);
+            Route::delete('whatsapp/messages/{message}', [WhatsAppInboxController::class, 'destroyMessage']);
             Route::post('whatsapp/campaigns/{campaign}/send', [WhatsAppCampaignController::class, 'send']);
         });
         Route::middleware('permission:whatsapp.manage')->group(function () {
