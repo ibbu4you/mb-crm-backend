@@ -162,6 +162,7 @@ Route::prefix('v1')->group(function () {
             Route::post('whatsapp/campaigns/{campaign}/send', [WhatsAppCampaignController::class, 'send']);
         });
         Route::middleware('permission:whatsapp.manage')->group(function () {
+            Route::post('whatsapp/templates/sync', [WhatsAppTemplateController::class, 'sync']);
             Route::post('whatsapp/templates', [WhatsAppTemplateController::class, 'store']);
             Route::put('whatsapp/templates/{template}', [WhatsAppTemplateController::class, 'update']);
             Route::delete('whatsapp/templates/{template}', [WhatsAppTemplateController::class, 'destroy']);

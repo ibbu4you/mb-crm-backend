@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\WhatsappTemplate;
+use App\Services\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class WhatsAppTemplateController extends Controller
 {
+    public function __construct(private WhatsAppService $wa) {}
+
     private const CATEGORIES = ['marketing', 'utility', 'authentication'];
     private const STATUSES = ['draft', 'pending', 'approved', 'rejected'];
 
@@ -23,6 +26,18 @@ class WhatsAppTemplateController extends Controller
         }
 
         return response()->json(['data' => $q->latest()->get()->map(fn ($t) => $this->row($t))]);
+    }
+
+    /** Mirror the WhatsApp Business Account's templates from Meta. */
+    public function sync(Request $request)
+    {
+        $res = $this->wa->syncTemplates($request->user()->id);
+        abort_if(! $res['ok'], 422, $res['error'] ?? 'Sync failed.');
+
+        return $this->index($request)->setData([
+            'data' => $this->index($request)->getData(true)['data'],
+            'synced' => $res['synced'],
+        ]);
     }
 
     public function store(Request $request)

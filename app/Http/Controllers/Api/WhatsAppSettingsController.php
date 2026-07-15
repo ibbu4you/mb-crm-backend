@@ -16,6 +16,7 @@ class WhatsAppSettingsController extends Controller
         return response()->json([
             'configured' => $this->wa->isConfigured(),
             'phone_number_id' => Setting::get('whatsapp.phone_number_id'),
+            'waba_id' => Setting::get('whatsapp.waba_id'),
             'verify_token' => $this->wa->verifyToken(),
             'api_version' => Setting::get('whatsapp.api_version', 'v21.0'),
             // secrets are write-only — report only whether they're set
@@ -29,13 +30,14 @@ class WhatsAppSettingsController extends Controller
     {
         $data = $request->validate([
             'phone_number_id' => ['nullable', 'string', 'max:60'],
+            'waba_id' => ['nullable', 'string', 'max:60'],
             'verify_token' => ['nullable', 'string', 'max:120'],
             'api_version' => ['nullable', 'string', 'max:10'],
             'access_token' => ['nullable', 'string'],
             'app_secret' => ['nullable', 'string'],
         ]);
 
-        foreach (['phone_number_id', 'verify_token', 'api_version'] as $k) {
+        foreach (['phone_number_id', 'waba_id', 'verify_token', 'api_version'] as $k) {
             if (array_key_exists($k, $data)) {
                 Setting::put("whatsapp.$k", $data[$k]);
             }
