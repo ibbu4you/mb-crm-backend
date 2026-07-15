@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Outermost, so it has the final say on CORS headers for the public
+        // intake routes (see PublicCors). Everything else keeps config/cors.php.
+        $middleware->prepend(\App\Http\Middleware\PublicCors::class);
+
         // Enable Sanctum SPA (cookie) auth for the /api group.
         $middleware->statefulApi();
 
