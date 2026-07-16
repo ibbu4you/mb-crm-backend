@@ -170,11 +170,45 @@ class WorkLogController extends Controller
         return Excel::download(new WorkLogReportExport($report), "work-report-{$stamp}.xlsx");
     }
 
-    public function destroy(WorkLog $workLog)
+    /** Edit any of the user's own entries (admins with manage can edit anyone's). */
+    public function update(Request $request, WorkLog $workLog)
     {
+        $this->authorizeOwn($request, $workLog);
+
+        $data = $request->validate([
+            'mode' => ['required', Rule::in(array_keys(WorkStatus::MODES))],
+            'note' => ['nullable', 'string', 'max:1000'],
+            'link_type' => ['nullable', Rule::in(WorkStatus::LINK_TYPES)],
+            'link_id' => ['nullable', 'integer'],
+        ]);
+
+        $workLog->update([
+            'mode' => $data['mode'],
+            'note' => $data['note'] ?? null,
+            'link_type' => $data['link_type'] ?? null,
+            'link_id' => $data['link_type'] ? ($data['link_id'] ?? null) : null,
+            'link_label' => $this->resolveLink($data['link_type'] ?? null, $data['link_id'] ?? null),
+        ]);
+
+        return response()->json(['data' => $this->row($workLog->fresh())]);
+    }
+
+    public function destroy(Request $request, WorkLog $workLog)
+    {
+        $this->authorizeOwn($request, $workLog);
         $workLog->delete();
 
         return response()->json(['deleted' => true]);
+    }
+
+    /** Owner may edit/delete their own entry; managers may touch anyone's. */
+    private function authorizeOwn(Request $request, WorkLog $workLog): void
+    {
+        abort_unless(
+            $workLog->user_id === $request->user()->id || $request->user()->can('work.logs.manage'),
+            403,
+            'You can only change your own work log entries.',
+        );
     }
 
     // ---- helpers ----

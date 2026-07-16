@@ -262,7 +262,11 @@ Route::prefix('v1')->group(function () {
             Route::get('work/report', [WorkLogController::class, 'report']);
             Route::get('work/report/export', [WorkLogController::class, 'export']);
         });
-        Route::middleware('permission:work.logs.manage')->delete('work/logs/{workLog}', [WorkLogController::class, 'destroy']);
+        // Edit/delete own entries (managers can touch anyone's — enforced in the controller).
+        Route::middleware('permission:work.log.submit')->group(function () {
+            Route::patch('work/logs/{workLog}', [WorkLogController::class, 'update']);
+            Route::delete('work/logs/{workLog}', [WorkLogController::class, 'destroy']);
+        });
 
         // Leave — self-service (every employee)
         Route::get('leaves/catalog', [LeaveController::class, 'catalog']);
