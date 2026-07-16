@@ -328,11 +328,13 @@ class WorkLogController extends Controller
             }
 
             $data['days'] = $days->values();
-            $data['entries'] = $userLogs->sortBy('slot_at')->map(fn ($l) => [
+            $data['entries'] = $userLogs->sortByDesc('slot_at')->map(fn ($l) => [
+                'id' => $l->id,
                 'date' => $l->log_date->toDateString(),
                 'hour' => $l->slot_at->format('H:i'),
                 'mode' => $l->mode,
                 'mode_label' => WorkStatus::label($l->mode),
+                'mode_color' => WorkStatus::color($l->mode),
                 'note' => $l->note,
                 'link_label' => $l->link_label,
                 'is_late' => (bool) $l->is_late,
