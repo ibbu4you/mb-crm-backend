@@ -284,6 +284,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:hrms.attendance.manage|hrms.view')->group(function () {
             Route::get('attendance/register', [AttendanceController::class, 'register']);
             Route::get('attendance/team', [AttendanceController::class, 'team']);
+            Route::get('attendance/team/export', [AttendanceController::class, 'export']);
         });
         Route::middleware('permission:hrms.attendance.manage')->group(function () {
             Route::post('office-locations', [OfficeLocationController::class, 'store']);

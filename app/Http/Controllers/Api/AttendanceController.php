@@ -146,6 +146,35 @@ class AttendanceController extends Controller
      */
     public function team(Request $request)
     {
+        $reg = $this->buildRegister(...$this->periodRef($request));
+
+        return response()->json($reg + [
+            'totals' => [
+                'employees' => count($reg['employees']),
+                'present_today' => Attendance::whereDate('date', today())->whereNotNull('check_in_at')->count(),
+            ],
+        ]);
+    }
+
+    /** Download the register for the selected week/month as Excel (grid) or PDF (summary). */
+    public function export(Request $request)
+    {
+        $reg = $this->buildRegister(...$this->periodRef($request));
+        $name = 'attendance-'.$reg['period'].'-'.$reg['start'].'_'.$reg['end'];
+
+        if ($request->input('format') === 'pdf') {
+            return \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.attendance', ['reg' => $reg])
+                ->setPaper('a4', 'landscape')->download($name.'.pdf');
+        }
+
+        return \Maatwebsite\Excel\Facades\Excel::download(
+            new \App\Exports\TeamAttendanceExport($reg), $name.'.xlsx'
+        );
+    }
+
+    /** @return array{0:string,1:Carbon} */
+    private function periodRef(Request $request): array
+    {
         $period = $request->input('period') === 'week' ? 'week' : 'month';
         try {
             $ref = Carbon::parse((string) $request->input('date', today()));
@@ -153,6 +182,12 @@ class AttendanceController extends Controller
             $ref = today();
         }
 
+        return [$period, $ref];
+    }
+
+    /** The shared grid used by both the on-screen register and the export. */
+    private function buildRegister(string $period, Carbon $ref): array
+    {
         if ($period === 'week') {
             $start = $ref->copy()->startOfWeek();
             $end = $ref->copy()->endOfWeek();
@@ -198,20 +233,9 @@ class AttendanceController extends Controller
                 'field' => $checkedIn->where('on_site', false)->count(),
                 'cells' => $cells,
             ];
-        });
+        })->values()->all();
 
-        return response()->json([
-            'period' => $period,
-            'start' => $start->toDateString(),
-            'end' => $end->toDateString(),
-            'label' => $label,
-            'days' => $days,
-            'employees' => $employees->values(),
-            'totals' => [
-                'employees' => $employees->count(),
-                'present_today' => Attendance::whereDate('date', today())->whereNotNull('check_in_at')->count(),
-            ],
-        ]);
+        return compact('period', 'label', 'days', 'employees') + ['start' => $start->toDateString(), 'end' => $end->toDateString()];
     }
 
     private function resolveGeofence(float $lat, float $lng): array
