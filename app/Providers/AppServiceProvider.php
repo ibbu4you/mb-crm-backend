@@ -15,7 +15,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Super Admin bypasses every permission/gate check.
+        // Super Admin bypasses every permission/gate check. Per-user denials are
+        // enforced in User::checkPermissionTo() instead of here — spatie registers
+        // its own Gate::before ahead of ours, so ordering can't be relied on.
         Gate::before(function ($user, $ability) {
             return $user->hasRole(Roles::SUPER_ADMIN) ? true : null;
         });

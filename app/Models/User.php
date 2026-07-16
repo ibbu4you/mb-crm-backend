@@ -13,7 +13,30 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HasRoles, LogsActivity;
+    use HasApiTokens, HasFactory, LogsActivity, Notifiable, SoftDeletes;
+    use HasRoles {
+        hasPermissionTo as protected spatieHasPermissionTo;
+    }
+
+    /**
+     * Enforce per-user permission denials at the single chokepoint every check
+     * funnels through (can / canAny / the Gate / checkPermissionTo all delegate
+     * here). Returning false revokes a permission even when a role grants it —
+     * the deterministic override for spatie's additive-only model. The
+     * Administrator is never denied.
+     */
+    public function hasPermissionTo($permission, $guardName = null): bool
+    {
+        $name = is_string($permission) ? $permission : ($permission->name ?? null);
+
+        if ($name !== null
+            && in_array($name, $this->denied_permissions ?? [], true)
+            && ! $this->hasRole(\App\Support\Roles::SUPER_ADMIN)) {
+            return false;
+        }
+
+        return $this->spatieHasPermissionTo($permission, $guardName);
+    }
 
     /** Audit only non-sensitive profile fields (never the password hash). */
     public function getActivitylogOptions(): LogOptions
@@ -33,6 +56,7 @@ class User extends Authenticatable
         'is_active',
         'last_login_at',
         'password',
+        'denied_permissions',
     ];
 
     protected $hidden = [
@@ -47,7 +71,17 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'is_active' => 'boolean',
             'password' => 'hashed',
+            'denied_permissions' => 'array',
         ];
+    }
+
+    /** Role + direct permissions, minus any explicitly denied for this user. */
+    public function effectivePermissions(): \Illuminate\Support\Collection
+    {
+        $denied = $this->denied_permissions ?? [];
+
+        return $this->getAllPermissions()->pluck('name')
+            ->reject(fn ($name) => in_array($name, $denied, true))->values();
     }
 
     protected $appends = ['avatar_url'];

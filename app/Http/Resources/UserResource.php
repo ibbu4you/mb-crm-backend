@@ -20,7 +20,10 @@ class UserResource extends JsonResource
             'last_login_at' => $this->last_login_at,
             'created_at' => $this->created_at,
             'roles' => $this->getRoleNames(),
-            'permissions' => $this->getAllPermissions()->pluck('name'),
+            // effective = what the user can actually do (denials removed), so the
+            // frontend gate matches the backend Gate
+            'permissions' => $this->effectivePermissions(),
+            'denied_permissions' => $this->denied_permissions ?? [],
         ];
     }
 }

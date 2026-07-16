@@ -50,6 +50,8 @@ class EmployeeController extends Controller
             'roles.*' => ['string', Rule::exists('roles', 'name')],
             'permissions' => ['array'],
             'permissions.*' => ['string', Rule::exists('permissions', 'name')],
+            'denied_permissions' => ['array'],
+            'denied_permissions.*' => ['string', Rule::exists('permissions', 'name')],
         ]);
 
         $generated = null;
@@ -67,6 +69,7 @@ class EmployeeController extends Controller
 
         $user->syncRoles($data['roles'] ?? []);
         $user->syncPermissions($data['permissions'] ?? []);
+        $user->update(['denied_permissions' => array_values(array_unique($data['denied_permissions'] ?? []))]);
 
         return (new UserResource($user->load('roles')))
             ->additional(['generated_password' => $generated])
@@ -91,6 +94,8 @@ class EmployeeController extends Controller
             'roles.*' => ['string', Rule::exists('roles', 'name')],
             'permissions' => ['sometimes', 'array'],
             'permissions.*' => ['string', Rule::exists('permissions', 'name')],
+            'denied_permissions' => ['sometimes', 'array'],
+            'denied_permissions.*' => ['string', Rule::exists('permissions', 'name')],
         ]);
 
         $employee->fill(collect($data)->only(['name', 'email', 'phone', 'is_active'])->toArray());
@@ -104,6 +109,9 @@ class EmployeeController extends Controller
         }
         if (array_key_exists('permissions', $data)) {
             $employee->syncPermissions($data['permissions']);
+        }
+        if (array_key_exists('denied_permissions', $data)) {
+            $employee->update(['denied_permissions' => array_values(array_unique($data['denied_permissions']))]);
         }
 
         return new UserResource($employee->fresh()->load('roles', 'permissions'));
