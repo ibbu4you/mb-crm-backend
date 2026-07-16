@@ -65,7 +65,9 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Malaysia time so attendance, work-log hours and hourly reminders match the
+    // team's wall clock. Override per-deployment with APP_TIMEZONE.
+    'timezone' => env('APP_TIMEZONE', 'Asia/Kuala_Lumpur'),
 
     /*
     |--------------------------------------------------------------------------
