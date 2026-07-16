@@ -141,7 +141,6 @@ class InvoiceController extends Controller
             'notes' => ['nullable', 'string'],
             'terms' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['nullable', 'exists:products,id'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.quantity' => ['required', 'numeric', 'min:0'],
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
@@ -152,7 +151,6 @@ class InvoiceController extends Controller
     {
         foreach ($items as $i => $item) {
             $invoice->items()->create([
-                'product_id' => $item['product_id'] ?? null,
                 'description' => $item['description'],
                 'quantity' => $item['quantity'],
                 'unit_price' => $item['unit_price'],

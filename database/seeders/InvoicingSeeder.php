@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Contact;
 use App\Models\Invoice;
-use App\Models\Product;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -12,18 +11,6 @@ class InvoicingSeeder extends Seeder
 {
     public function run(): void
     {
-        $products = [
-            ['name' => 'Go Viral Package', 'sku' => 'PKG-VIRAL', 'price' => 1500, 'sort_order' => 1],
-            ['name' => 'Bronze Package', 'sku' => 'PKG-BRONZE', 'price' => 2000, 'sort_order' => 2],
-            ['name' => 'Silver Package', 'sku' => 'PKG-SILVER', 'price' => 5000, 'sort_order' => 3],
-            ['name' => 'Platinum Package', 'sku' => 'PKG-PLATINUM', 'price' => 10000, 'sort_order' => 4],
-            ['name' => 'SEO Article', 'sku' => 'SVC-SEO', 'price' => 300, 'sort_order' => 5],
-            ['name' => 'Social Media Management (monthly)', 'sku' => 'SVC-SMM', 'price' => 800, 'sort_order' => 6],
-        ];
-        foreach ($products as $p) {
-            Product::updateOrCreate(['sku' => $p['sku']], $p);
-        }
-        $catalog = Product::pluck('price', 'name');
         $admin = User::where('email', 'admin@malayznbeat.com')->value('id');
         $contacts = Contact::limit(6)->get();
 

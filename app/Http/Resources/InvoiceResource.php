@@ -32,7 +32,7 @@ class InvoiceResource extends JsonResource
             'notes' => $this->notes,
             'terms' => $this->terms,
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($i) => [
-                'id' => $i->id, 'product_id' => $i->product_id, 'description' => $i->description,
+                'id' => $i->id, 'description' => $i->description,
                 'quantity' => (float) $i->quantity, 'unit_price' => (float) $i->unit_price, 'line_total' => (float) $i->line_total,
             ])),
             'payments' => $this->whenLoaded('payments', fn () => $this->payments->map(fn ($p) => [

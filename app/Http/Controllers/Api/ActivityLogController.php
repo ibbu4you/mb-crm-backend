@@ -22,7 +22,6 @@ class ActivityLogController extends Controller
         'Deal' => 'Deal',
         'FollowUp' => 'Follow-up',
         'Target' => 'Target',
-        'Product' => 'Product',
         'PortfolioItem' => 'Portfolio item',
         'CompanyDocument' => 'Document',
         'User' => 'Employee',

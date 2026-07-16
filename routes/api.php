@@ -36,7 +36,6 @@ use App\Http\Controllers\Api\OverviewController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PermissionController;
-use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\CompanyDocumentController;
 use App\Http\Controllers\Api\PortfolioController;
@@ -405,13 +404,6 @@ Route::prefix('v1')->group(function () {
         });
 
         // --- Invoicing & Payments ---
-        Route::get('products', [ProductController::class, 'index']);
-        Route::middleware('permission:invoicing.manage')->group(function () {
-            Route::post('products', [ProductController::class, 'store']);
-            Route::put('products/{product}', [ProductController::class, 'update']);
-            Route::delete('products/{product}', [ProductController::class, 'destroy']);
-        });
-
         Route::middleware('permission:invoicing.view|invoicing.manage|invoicing.reports.view')->group(function () {
             Route::get('invoices/stats', [InvoiceController::class, 'stats']);
             Route::get('invoices', [InvoiceController::class, 'index']);
