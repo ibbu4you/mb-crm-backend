@@ -19,12 +19,13 @@ class InterviewController extends Controller
     {
         $typeId = LeadType::where('name', 'Free Spotlight')->value('id');
 
-        // Interview/appointment registrations come from two funnels: the WhatsApp
-        // bot (source=whatsapp) and the appointment landing page (Free Spotlight /
-        // campaign=free_spotlight). Both carry the interview intake form in meta.form.
+        // An interview is a registration that carries the intake form — i.e. the
+        // lead's "Additional Details" (meta.form). That covers WhatsApp bot and
+        // appointment-landing registrations alike, and excludes plain leads that
+        // never filled the interview form. Free Spotlight is always included.
         $q = Lead::query()->with(['contact', 'owner'])
             ->where(function ($w) use ($typeId) {
-                $w->where('source', 'whatsapp')
+                $w->whereRaw("JSON_LENGTH(JSON_EXTRACT(meta, '$.form')) > 0")
                     ->orWhereRaw("JSON_EXTRACT(meta, '$.campaign') = 'free_spotlight'");
                 if ($typeId) {
                     $w->orWhere('lead_type_id', $typeId);
