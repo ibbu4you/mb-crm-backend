@@ -34,7 +34,7 @@ class LeadController extends Controller
     private function excludeInterviews($q)
     {
         $spotlight = \App\Models\LeadType::where('name', 'Free Spotlight')->value('id');
-        $q->whereRaw("COALESCE(JSON_LENGTH(JSON_EXTRACT(meta, '$.form')), 0) = 0")
+        $q->whereRaw("COALESCE(meta, '') NOT LIKE '%Interview%'")
             ->whereRaw("COALESCE(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.campaign')), '') <> 'free_spotlight'");
         if ($spotlight) {
             $q->where(fn ($w) => $w->whereNull('lead_type_id')->orWhere('lead_type_id', '!=', $spotlight));

@@ -21,8 +21,12 @@ class InterviewController extends Controller
     {
         $typeId = LeadType::where('name', 'Free Spotlight')->value('id');
 
+        // A real interview registration carries interview details (the intake form
+        // asks "Preferred Interview Mode / Language / slot"), so its meta contains
+        // "Interview". This excludes junk "New Form" submissions that only hold a
+        // form id/name and no actual booking data.
         return Lead::query()->where(function ($w) use ($typeId) {
-            $w->whereRaw("JSON_LENGTH(JSON_EXTRACT(meta, '$.form')) > 0")
+            $w->whereRaw("meta LIKE '%Interview%'")
                 ->orWhereRaw("JSON_EXTRACT(meta, '$.campaign') = 'free_spotlight'");
             if ($typeId) {
                 $w->orWhere('lead_type_id', $typeId);
