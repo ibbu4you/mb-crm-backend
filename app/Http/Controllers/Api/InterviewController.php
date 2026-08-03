@@ -19,12 +19,17 @@ class InterviewController extends Controller
     {
         $typeId = LeadType::where('name', 'Free Spotlight')->value('id');
 
+        // Interview/appointment registrations come from two funnels: the WhatsApp
+        // bot (source=whatsapp) and the appointment landing page (Free Spotlight /
+        // campaign=free_spotlight). Both carry the interview intake form in meta.form.
         $q = Lead::query()->with(['contact', 'owner'])
-            ->when(
-                $typeId,
-                fn ($qq) => $qq->where('lead_type_id', $typeId),
-                fn ($qq) => $qq->whereRaw("JSON_EXTRACT(meta, '$.campaign') = 'free_spotlight'")
-            );
+            ->where(function ($w) use ($typeId) {
+                $w->where('source', 'whatsapp')
+                    ->orWhereRaw("JSON_EXTRACT(meta, '$.campaign') = 'free_spotlight'");
+                if ($typeId) {
+                    $w->orWhere('lead_type_id', $typeId);
+                }
+            });
 
         if ($search = trim((string) $request->input('search'))) {
             $q->whereHas('contact', fn ($c) => $c
@@ -55,7 +60,7 @@ class InterviewController extends Controller
                 'submitted_at' => $l->created_at,
                 'last_activity_at' => $l->last_activity_at,
                 'notes' => $l->notes,
-                'form' => $l->meta['form'] ?? (object) [],
+                'form' => $this->cleanForm($l->meta['form'] ?? []),
             ]),
             'meta' => [
                 'current_page' => $page->currentPage(),
@@ -66,5 +71,20 @@ class InterviewController extends Controller
                 'to' => $page->lastItem(),
             ],
         ]);
+    }
+
+    /** Normalise intake-form labels: WhatsApp stores keys underscored, the landing
+     * page stores them spaced — humanise so both read the same and columns match. */
+    private function cleanForm($form): object|array
+    {
+        $out = [];
+        foreach ((array) $form as $k => $v) {
+            if ($v === null || $v === '') {
+                continue;
+            }
+            $out[str_replace('_', ' ', (string) $k)] = $v;
+        }
+
+        return $out ?: (object) [];
     }
 }
