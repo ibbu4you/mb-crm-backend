@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AlertNumberController;
 use App\Http\Controllers\Api\AppSettingsController;
 use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\InterviewController;
 use App\Http\Controllers\Api\SpotlightController;
 use App\Http\Controllers\Api\WorkLogController;
 use App\Http\Controllers\Api\GeocodeController;
@@ -129,6 +130,10 @@ Route::prefix('v1')->group(function () {
             Route::get('leads/{lead}', [LeadController::class, 'show']);
         });
         Route::middleware('permission:leads.export|leads.view.all|leads.manage')->get('leads-export', [LeadController::class, 'export']);
+
+        // Interview / appointment registrations — the whole sales team sees them all.
+        Route::middleware('permission:leads.view|leads.view.all|leads.manage')
+            ->get('interviews', [InterviewController::class, 'index']);
 
         // WhatsApp alert numbers + settings
         Route::middleware('permission:leads.manage')->group(function () {
@@ -296,6 +301,8 @@ Route::prefix('v1')->group(function () {
         Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
         Route::patch('notifications/{id}/read', [NotificationController::class, 'markRead']);
         Route::patch('notifications/read-all', [NotificationController::class, 'markAllRead']);
+        Route::delete('notifications/{id}', [NotificationController::class, 'destroy']);
+        Route::delete('notifications', [NotificationController::class, 'destroyAll']);
 
         // --- Content · Articles ---
 
