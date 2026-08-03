@@ -132,8 +132,10 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:leads.export|leads.view.all|leads.manage')->get('leads-export', [LeadController::class, 'export']);
 
         // Interview / appointment registrations — the whole sales team sees them all.
-        Route::middleware('permission:leads.view|leads.view.all|leads.manage')
-            ->get('interviews', [InterviewController::class, 'index']);
+        Route::middleware('permission:leads.view|leads.view.all|leads.manage')->group(function () {
+            Route::get('interviews', [InterviewController::class, 'index']);
+            Route::get('interviews/stats', [InterviewController::class, 'stats']);
+        });
 
         // WhatsApp alert numbers + settings
         Route::middleware('permission:leads.manage')->group(function () {

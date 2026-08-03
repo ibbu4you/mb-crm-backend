@@ -28,9 +28,27 @@ class LeadController extends Controller
         return $q;
     }
 
+    /** Interview/appointment registrations belong to the Interviews module, not the
+     *  Leads list — a lead is an interview if it carries the intake form (meta.form)
+     *  or is a Free Spotlight registration. */
+    private function excludeInterviews($q)
+    {
+        $spotlight = \App\Models\LeadType::where('name', 'Free Spotlight')->value('id');
+        $q->whereRaw("COALESCE(JSON_LENGTH(JSON_EXTRACT(meta, '$.form')), 0) = 0")
+            ->whereRaw("COALESCE(JSON_UNQUOTE(JSON_EXTRACT(meta, '$.campaign')), '') <> 'free_spotlight'");
+        if ($spotlight) {
+            $q->where(fn ($w) => $w->whereNull('lead_type_id')->orWhere('lead_type_id', '!=', $spotlight));
+        }
+
+        return $q;
+    }
+
     public function index(Request $request)
     {
         $q = $this->scoped($request)->with(['contact', 'type', 'owner']);
+        if (! $request->filled('type')) {
+            $this->excludeInterviews($q);
+        }
 
         if ($stage = $request->input('stage')) {
             $q->where('pipeline_stage', $stage);
@@ -67,6 +85,8 @@ class LeadController extends Controller
             $q = $this->scoped($request);
             if ($type = $request->input('type')) {
                 $q->where('lead_type_id', $type);
+            } else {
+                $this->excludeInterviews($q);
             }
             if ($source = $request->input('source')) {
                 $q->where('source', $source);

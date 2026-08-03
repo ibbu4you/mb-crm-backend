@@ -15,23 +15,39 @@ use Illuminate\Http\Request;
  */
 class InterviewController extends Controller
 {
-    public function index(Request $request)
+    /** An interview is a registration carrying the intake form (meta.form — the
+     *  lead's "Additional Details"), or a Free Spotlight registration. */
+    private function base()
     {
         $typeId = LeadType::where('name', 'Free Spotlight')->value('id');
 
-        // An interview is a registration that carries the intake form — i.e. the
-        // lead's "Additional Details" (meta.form). That covers WhatsApp bot and
-        // appointment-landing registrations alike, and excludes plain leads that
-        // never filled the interview form. Free Spotlight is always included.
-        $q = Lead::query()->with(['contact', 'owner'])
-            ->where(function ($w) use ($typeId) {
-                $w->whereRaw("JSON_LENGTH(JSON_EXTRACT(meta, '$.form')) > 0")
-                    ->orWhereRaw("JSON_EXTRACT(meta, '$.campaign') = 'free_spotlight'");
-                if ($typeId) {
-                    $w->orWhere('lead_type_id', $typeId);
-                }
-            });
+        return Lead::query()->where(function ($w) use ($typeId) {
+            $w->whereRaw("JSON_LENGTH(JSON_EXTRACT(meta, '$.form')) > 0")
+                ->orWhereRaw("JSON_EXTRACT(meta, '$.campaign') = 'free_spotlight'");
+            if ($typeId) {
+                $w->orWhere('lead_type_id', $typeId);
+            }
+        });
+    }
 
+    public function stats()
+    {
+        return response()->json([
+            'total' => $this->base()->count(),
+            'this_month' => $this->base()->whereMonth('created_at', now()->month)->whereYear('created_at', now()->year)->count(),
+            'whatsapp' => $this->base()->where('source', 'whatsapp')->count(),
+            'appointment' => $this->base()->where('source', 'web')->count(),
+            'by_stage' => $this->base()->selectRaw('pipeline_stage, count(*) as c')->groupBy('pipeline_stage')->pluck('c', 'pipeline_stage'),
+        ]);
+    }
+
+    public function index(Request $request)
+    {
+        $q = $this->base()->with(['contact', 'owner']);
+
+        if ($source = $request->input('source')) {
+            $q->where('source', $source);
+        }
         if ($search = trim((string) $request->input('search'))) {
             $q->whereHas('contact', fn ($c) => $c
                 ->where('business_name', 'like', "%{$search}%")
