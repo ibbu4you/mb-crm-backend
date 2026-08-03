@@ -202,6 +202,10 @@ class LeadController extends Controller
             'stages' => Pipeline::catalog(),
             'sources' => ['whatsapp', 'web', 'field', 'manual', 'referral'],
             'statuses' => ['active', 'won', 'lost', 'dormant'],
+            // Users a lead can be assigned to (the sales team).
+            'salespeople' => User::permission('leads.view')->where('is_active', true)
+                ->orderBy('name')->get(['id', 'name'])
+                ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name])->values(),
         ]);
     }
 
@@ -287,7 +291,20 @@ class LeadController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
         $data['last_activity_at'] = now();
+        $originalOwner = $lead->owner_id;
         $lead->update($data);
+
+        // Ping the new owner when a lead is (re)assigned to them.
+        if (array_key_exists('owner_id', $data) && $data['owner_id'] && $data['owner_id'] !== $originalOwner) {
+            Notifier::send(User::find($data['owner_id']), [
+                'type' => 'lead',
+                'event' => 'assigned',
+                'title' => 'Lead assigned to you',
+                'message' => ($lead->contact?->business_name ?? 'A lead').($lead->title ? ' — '.$lead->title : ''),
+                'url' => '/leads/'.$lead->id,
+                'icon' => 'lead',
+            ], $request->user()->id);
+        }
 
         return new LeadResource($lead->load(['contact', 'type', 'owner']));
     }
