@@ -102,10 +102,13 @@ Route::prefix('v1')->group(function () {
             Route::get('contacts', [ContactController::class, 'index']);
             Route::get('contacts/duplicates', [ContactController::class, 'duplicates']);
             Route::get('contacts/stats', [ContactController::class, 'stats']);
+            Route::get('contacts/export', [ContactController::class, 'export']);
+            Route::get('contacts/template', [ContactController::class, 'template']);
             Route::get('contacts/{contact}', [ContactController::class, 'show']);
         });
         Route::middleware('permission:contacts.manage')->group(function () {
             Route::post('contacts', [ContactController::class, 'store']);
+            Route::post('contacts/import', [ContactController::class, 'import']);
             Route::put('contacts/{contact}', [ContactController::class, 'update']);
             Route::delete('contacts/{contact}', [ContactController::class, 'destroy']);
         });

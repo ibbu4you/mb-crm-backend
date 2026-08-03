@@ -2,14 +2,40 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Exports\ContactsExport;
+use App\Exports\ContactsTemplateExport;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ContactResource;
+use App\Imports\ContactsImport;
 use App\Models\Contact;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ContactController extends Controller
 {
+    public function export(Request $request)
+    {
+        $owner = $request->user()->can('contacts.view.all') ? null : $request->user()->id;
+        $search = trim((string) $request->input('search')) ?: null;
+
+        return Excel::download(new ContactsExport($owner, $request->input('source'), $search), 'contacts-'.now()->format('Y-m-d').'.xlsx');
+    }
+
+    public function template()
+    {
+        return Excel::download(new ContactsTemplateExport, 'contacts-import-template.xlsx');
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate(['file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:10240']]);
+        $import = new ContactsImport($request->user()->id);
+        Excel::import($import, $request->file('file'));
+
+        return response()->json(['imported' => $import->imported]);
+    }
+
     public function index(Request $request)
     {
         $q = Contact::query()->with('owner')->withCount(['leads', 'articles', 'viralPackages']);
