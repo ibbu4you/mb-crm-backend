@@ -24,6 +24,14 @@ class PortfolioItem extends Model
 
     public function getImageUrlAttribute(): ?string
     {
-        return $this->image_path ? asset('storage/'.$this->image_path) : null;
+        if (! $this->image_path) {
+            return null;
+        }
+
+        // Migrated items store a full external URL (e.g. the article's cover on the
+        // marketing site); locally-uploaded ones store a storage-relative path.
+        return preg_match('#^https?://#i', $this->image_path)
+            ? $this->image_path
+            : asset('storage/'.$this->image_path);
     }
 }

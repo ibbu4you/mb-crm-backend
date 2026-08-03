@@ -10,6 +10,8 @@ class PortfolioImage extends Model
 
     public function getUrlAttribute(): string
     {
-        return asset('storage/'.$this->image_path);
+        return preg_match('#^https?://#i', $this->image_path)
+            ? $this->image_path
+            : asset('storage/'.$this->image_path);
     }
 }
