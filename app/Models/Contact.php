@@ -6,6 +6,7 @@ use App\Support\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Contact extends Model
@@ -52,6 +53,12 @@ class Contact extends Model
     public function articles(): HasMany
     {
         return $this->hasMany(Article::class, 'client_id');
+    }
+
+    /** Field-visits logged against any of this business's leads. */
+    public function visits(): HasManyThrough
+    {
+        return $this->hasManyThrough(Visit::class, Lead::class, 'contact_id', 'lead_id', 'id', 'id');
     }
 
     public function viralPackages(): HasMany

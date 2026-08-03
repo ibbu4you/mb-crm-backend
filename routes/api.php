@@ -218,7 +218,7 @@ Route::prefix('v1')->group(function () {
             Route::get('sales/clients/stats', [SalesClientController::class, 'stats']);
             Route::get('sales/clients/export', [SalesClientController::class, 'export']);
             Route::get('sales/clients/template', [SalesClientController::class, 'template']);
-            Route::get('sales/clients/{lead}', [SalesClientController::class, 'show']);
+            Route::get('sales/clients/{contact}', [SalesClientController::class, 'show']);
         });
         Route::middleware('permission:sales.clients.manage')->post('sales/clients/import', [SalesClientController::class, 'import']);
         // Sales reports
