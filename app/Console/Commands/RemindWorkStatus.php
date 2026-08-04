@@ -23,26 +23,34 @@ class RemindWorkStatus extends Command
             return self::SUCCESS;
         }
 
-        $now = now();
-        // Only remind within the working window (before the hard end-of-day cap).
-        if ($now->greaterThan(WorkStatus::workEnd($now->copy()))) {
-            return self::SUCCESS;
-        }
-
-        $slot = WorkStatus::slotFor($now);
-        // Give employees a grace window into the hour before nudging.
-        if ($now->minute < WorkStatus::graceMinutes()) {
-            return self::SUCCESS;
-        }
-
-        $present = Attendance::with('user')->whereDate('date', today())
+        // Each employee's "today"/current-hour is evaluated in THEIR timezone, so a
+        // local day can fall on an adjacent server date — scan a ±1-day window and
+        // decide per user inside the loop.
+        $present = Attendance::with('user')
+            ->whereBetween('date', [today()->subDay()->toDateString(), today()->addDay()->toDateString()])
             ->whereNotNull('check_in_at')->whereNull('check_out_at')->get();
 
-        $filled = WorkLog::where('slot_at', $slot)->pluck('user_id')->flip();
         $sent = 0;
 
         foreach ($present as $att) {
-            if (! $att->user || $filled->has($att->user_id)) {
+            if (! $att->user) {
+                continue;
+            }
+            $localNow = WorkStatus::nowIn($att->user->tz());
+
+            // Only the employee's current local day, inside their working window, past their grace.
+            if ($att->date->toDateString() !== $localNow->toDateString()) {
+                continue;
+            }
+            if ($localNow->greaterThan(WorkStatus::workEnd($localNow->copy()))) {
+                continue;
+            }
+            if ($localNow->minute < WorkStatus::graceMinutes()) {
+                continue;
+            }
+
+            $slot = WorkStatus::slotFor($localNow);
+            if (WorkLog::where('user_id', $att->user_id)->where('slot_at', $slot)->exists()) {
                 continue; // already logged this hour
             }
             if ($att->last_reminder_slot_at && Carbon::parse($att->last_reminder_slot_at)->eq($slot)) {
@@ -62,7 +70,7 @@ class RemindWorkStatus extends Command
             $sent++;
         }
 
-        $this->info("Sent {$sent} work-status reminder(s) for slot {$slot->format('H:i')}.");
+        $this->info("Sent {$sent} work-status reminder(s).");
 
         return self::SUCCESS;
     }

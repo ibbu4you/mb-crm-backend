@@ -52,6 +52,7 @@ class User extends Authenticatable
         'username',
         'email',
         'phone',
+        'timezone',
         'avatar_path',
         'is_active',
         'last_login_at',
@@ -73,6 +74,12 @@ class User extends Authenticatable
             'password' => 'hashed',
             'denied_permissions' => 'array',
         ];
+    }
+
+    /** The employee's effective IANA timezone (falls back to the app default). */
+    public function tz(): string
+    {
+        return $this->timezone ?: config('app.timezone');
     }
 
     /** Role + direct permissions, minus any explicitly denied for this user. */

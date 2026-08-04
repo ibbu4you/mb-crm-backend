@@ -8,6 +8,7 @@ use App\Models\OfficeLocation;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\GeocodingService;
+use App\Support\WorkStatus;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -18,7 +19,7 @@ class AttendanceController extends Controller
     /** Today's own record + config, for the check-in screen. */
     public function today(Request $request)
     {
-        $a = Attendance::where('user_id', $request->user()->id)->whereDate('date', today())->first();
+        $a = Attendance::where('user_id', $request->user()->id)->whereDate('date', WorkStatus::nowIn($request->user()->tz())->toDateString())->first();
 
         return response()->json([
             'attendance' => $a ? $this->row($a) : null,
@@ -38,14 +39,15 @@ class AttendanceController extends Controller
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $existing = Attendance::where('user_id', $request->user()->id)->whereDate('date', today())->first();
+        $localNow = WorkStatus::nowIn($request->user()->tz());
+        $existing = Attendance::where('user_id', $request->user()->id)->whereDate('date', $localNow->toDateString())->first();
         abort_if($existing && $existing->check_in_at, 422, 'You have already checked in today.');
 
         [$onSite, $office] = $this->resolveGeofence($data['lat'], $data['lng']);
         $address = ($data['address'] ?? null) ?: $this->geo->reverse($data['lat'], $data['lng']);
-        $status = $this->clockStatus(now());
+        $status = $this->clockStatus($localNow);
 
-        $attendance = $existing ?: new Attendance(['user_id' => $request->user()->id, 'date' => today()]);
+        $attendance = $existing ?: new Attendance(['user_id' => $request->user()->id, 'date' => $localNow->toDateString()]);
         $attendance->fill([
             'check_in_at' => now(),
             'in_lat' => $data['lat'], 'in_lng' => $data['lng'], 'in_accuracy' => $data['accuracy'] ?? null,
@@ -69,7 +71,7 @@ class AttendanceController extends Controller
             'photo' => ['nullable', 'image', 'max:8192'],
         ]);
 
-        $a = Attendance::where('user_id', $request->user()->id)->whereDate('date', today())->first();
+        $a = Attendance::where('user_id', $request->user()->id)->whereDate('date', WorkStatus::nowIn($request->user()->tz())->toDateString())->first();
         abort_if(! $a || ! $a->check_in_at, 422, 'You have not checked in today.');
         abort_if($a->check_out_at, 422, 'You have already checked out today.');
 
@@ -105,7 +107,7 @@ class AttendanceController extends Controller
         try {
             $ref = Carbon::createFromFormat('Y-m', (string) $request->input('month'))->startOfMonth();
         } catch (\Throwable) {
-            $ref = now()->startOfMonth();
+            $ref = WorkStatus::nowIn($request->user()->tz())->startOfMonth();
         }
 
         $records = Attendance::where('user_id', $request->user()->id)
@@ -217,8 +219,8 @@ class AttendanceController extends Controller
                 $cells[$d] = $r ? [
                     'status' => $r->status,
                     'on_site' => (bool) $r->on_site,
-                    'in' => optional($r->check_in_at)->format('H:i'),
-                    'out' => optional($r->check_out_at)->format('H:i'),
+                    'in' => $r->check_in_at?->copy()->setTimezone($u->tz())->format('H:i'),
+                    'out' => $r->check_out_at?->copy()->setTimezone($u->tz())->format('H:i'),
                 ] : null;
             }
 

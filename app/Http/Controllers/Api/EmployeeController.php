@@ -46,6 +46,7 @@ class EmployeeController extends Controller
             'username' => ['nullable', 'string', 'max:60', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('users', 'username')],
             'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')],
             'phone' => ['nullable', 'string', 'max:40'],
+            'timezone' => ['nullable', 'string', Rule::in(\App\Support\Timezones::keys())],
             'password' => ['nullable', 'string', 'min:8'],
             'is_active' => ['sometimes', 'boolean'],
             'roles' => ['array'],
@@ -66,6 +67,7 @@ class EmployeeController extends Controller
             'username' => $data['username'] ?? null,
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
+            'timezone' => $data['timezone'] ?? null,
             'is_active' => $data['is_active'] ?? true,
             'password' => Hash::make($data['password'] ?? $generated),
         ]);
@@ -92,6 +94,7 @@ class EmployeeController extends Controller
             'username' => ['nullable', 'string', 'max:60', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('users', 'username')->ignore($employee->id)],
             'email' => ['sometimes', 'email', 'max:190', Rule::unique('users', 'email')->ignore($employee->id)],
             'phone' => ['nullable', 'string', 'max:40'],
+            'timezone' => ['nullable', 'string', Rule::in(\App\Support\Timezones::keys())],
             'password' => ['nullable', 'string', 'min:8'],
             'is_active' => ['sometimes', 'boolean'],
             'roles' => ['sometimes', 'array'],
@@ -102,7 +105,7 @@ class EmployeeController extends Controller
             'denied_permissions.*' => ['string', Rule::exists('permissions', 'name')],
         ]);
 
-        $employee->fill(collect($data)->only(['name', 'username', 'email', 'phone', 'is_active'])->toArray());
+        $employee->fill(collect($data)->only(['name', 'username', 'email', 'phone', 'timezone', 'is_active'])->toArray());
         if (! empty($data['password'])) {
             $employee->password = Hash::make($data['password']);
         }

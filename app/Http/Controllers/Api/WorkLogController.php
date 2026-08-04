@@ -24,10 +24,11 @@ class WorkLogController extends Controller
     /** The signed-in user's work-status view for a day (defaults to today). */
     public function today(Request $request)
     {
-        $date = $request->date('date') ? Carbon::parse($request->date('date')) : today();
+        $tz = $request->user()->tz();
+        $date = $request->date('date') ? Carbon::parse($request->date('date')) : WorkStatus::nowIn($tz)->startOfDay();
         $att = Attendance::where('user_id', $request->user()->id)->whereDate('date', $date)->first();
 
-        return response()->json($this->daySummary($request->user(), $att, $date));
+        return response()->json($this->daySummary($request->user(), $att, $date, $tz));
     }
 
     /** Submit / update the current hour's work status. */
@@ -40,12 +41,14 @@ class WorkLogController extends Controller
             'link_id' => ['nullable', 'integer'],
         ]);
 
-        $att = Attendance::where('user_id', $request->user()->id)->whereDate('date', today())->first();
+        $tz = $request->user()->tz();
+        $nowLocal = WorkStatus::nowIn($tz);
+        $att = Attendance::where('user_id', $request->user()->id)->whereDate('date', $nowLocal->toDateString())->first();
         abort_if(! $att || ! $att->check_in_at, 422, 'Check in first to log your work status.');
         abort_if((bool) $att->check_out_at, 422, 'You have checked out for the day.');
 
-        $slot = WorkStatus::slotFor(now());
-        $late = now()->gt($slot->copy()->addMinutes(WorkStatus::intervalMinutes()));
+        $slot = WorkStatus::slotFor($nowLocal);
+        $late = $nowLocal->gt($slot->copy()->addMinutes(WorkStatus::intervalMinutes()));
 
         $log = WorkLog::updateOrCreate(
             ['user_id' => $request->user()->id, 'slot_at' => $slot],
@@ -66,7 +69,7 @@ class WorkLogController extends Controller
             $att->update(['last_reminder_slot_at' => null]);
         }
 
-        return response()->json(['data' => $this->row($log->fresh()), 'summary' => $this->daySummary($request->user(), $att, today())], 201);
+        return response()->json(['data' => $this->row($log->fresh()), 'summary' => $this->daySummary($request->user(), $att, $nowLocal->copy()->startOfDay(), $tz)], 201);
     }
 
     /** Options for the optional "related to" link picker (lead / client / article). */
@@ -96,7 +99,8 @@ class WorkLogController extends Controller
     public function index(Request $request)
     {
         $userId = $this->targetUserId($request);
-        $from = $request->date('from') ? Carbon::parse($request->date('from')) : today();
+        $utz = optional(User::find($userId))->tz();
+        $from = $request->date('from') ? Carbon::parse($request->date('from')) : WorkStatus::nowIn($utz)->startOfDay();
         $to = $request->date('to') ? Carbon::parse($request->date('to')) : $from->copy();
 
         $logs = WorkLog::with('user')->where('user_id', $userId)
@@ -117,12 +121,13 @@ class WorkLogController extends Controller
         $logs = WorkLog::whereDate('log_date', today())->get()->groupBy('user_id');
 
         $rows = $atts->map(function (Attendance $att) use ($logs) {
-            $summary = $this->daySummary($att->user, $att, today());
+            $tz = $att->user?->tz();
+            $summary = $this->daySummary($att->user, $att, WorkStatus::nowIn($tz)->startOfDay(), $tz);
             $userLogs = ($logs->get($att->user_id) ?? collect())->sortByDesc('slot_at');
             $latest = $userLogs->first();
 
             return [
-                'user' => ['id' => $att->user->id, 'name' => $att->user->name],
+                'user' => ['id' => $att->user->id, 'name' => $att->user->name, 'timezone' => $att->user->timezone],
                 'checked_in_at' => optional($att->check_in_at)->toIso8601String(),
                 'checked_out' => (bool) $att->check_out_at,
                 'compliance' => $summary['compliance'] ?? 0,
@@ -252,8 +257,10 @@ class WorkLogController extends Controller
         // Expected (completed) slots per user across their attendances in range.
         $expectedByUser = [];
         foreach ($atts as $att) {
-            $end = Carbon::parse($att->date)->isToday() ? now() : Carbon::parse($att->date)->endOfDay();
-            $expectedByUser[$att->user_id] = ($expectedByUser[$att->user_id] ?? 0) + WorkStatus::completedSlots($att, $end)->count();
+            $utz = $att->user?->tz();
+            $ln = WorkStatus::nowIn($utz);
+            $end = Carbon::parse($att->date)->toDateString() === $ln->toDateString() ? $ln : Carbon::parse($att->date)->endOfDay();
+            $expectedByUser[$att->user_id] = ($expectedByUser[$att->user_id] ?? 0) + WorkStatus::completedSlots($att, $utz, $end)->count();
         }
 
         $userIds = collect($expectedByUser)->keys()->merge($logsByUser->keys())->unique();
@@ -315,8 +322,10 @@ class WorkLogController extends Controller
                 if (! $att) {
                     continue;
                 }
-                $end = Carbon::parse($att->date)->isToday() ? now() : Carbon::parse($att->date)->endOfDay();
-                $expected = WorkStatus::completedSlots($att, $end)->count();
+                $utz = $att->user?->tz();
+                $ln = WorkStatus::nowIn($utz);
+                $end = Carbon::parse($att->date)->toDateString() === $ln->toDateString() ? $ln : Carbon::parse($att->date)->endOfDay();
+                $expected = WorkStatus::completedSlots($att, $utz, $end)->count();
                 $submitted = ($logsByDate->get($d) ?? collect())->count();
                 $days->push([
                     'date' => $d,
@@ -344,15 +353,18 @@ class WorkLogController extends Controller
         return $data;
     }
 
-    private function daySummary(?User $user, ?Attendance $att, Carbon $date): array
+    private function daySummary(?User $user, ?Attendance $att, Carbon $date, ?string $tz = null): array
     {
+        $tz = $tz ?: ($user?->tz() ?? config('app.timezone'));
         if (! $user || ! $att || ! $att->check_in_at) {
             return ['checked_in' => false, 'date' => $date->toDateString(), 'modes' => WorkStatus::modes()];
         }
 
-        $now = $date->isToday() ? now() : $date->copy()->endOfDay();
-        $completed = WorkStatus::completedSlots($att, $now);
-        $current = WorkStatus::currentSlot($att, now());
+        $nowLocal = WorkStatus::nowIn($tz);
+        $isToday = $date->toDateString() === $nowLocal->toDateString();
+        $now = $isToday ? $nowLocal : $date->copy()->endOfDay();
+        $completed = WorkStatus::completedSlots($att, $tz, $now);
+        $current = WorkStatus::currentSlot($att, $tz, $nowLocal);
         $logs = WorkLog::where('user_id', $user->id)->whereDate('log_date', $date)->get()
             ->keyBy(fn (WorkLog $l) => $l->slot_at->format('Y-m-d H'));
 

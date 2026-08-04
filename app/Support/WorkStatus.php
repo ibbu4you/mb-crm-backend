@@ -69,20 +69,41 @@ class WorkStatus
     }
 
     /**
+     * "Now" expressed in an employee's local wall clock, but relabelled with the
+     * app timezone so it round-trips identically to how Eloquent reads timestamps
+     * back (the DB stores naive wall-clock). All slot/day math must run on these
+     * "local-digits" Carbons. $tz null → app default.
+     */
+    public static function nowIn(?string $tz = null): Carbon
+    {
+        return self::localWall(now(), $tz);
+    }
+
+    /** Re-express a true instant as an employee-local wall clock (app-tz-labelled). */
+    public static function localWall(Carbon $instant, ?string $tz = null): Carbon
+    {
+        $tz = $tz ?: config('app.timezone');
+
+        return Carbon::parse($instant->copy()->setTimezone($tz)->format('Y-m-d H:i:s'));
+    }
+
+    /**
      * Completed hourly slots for an attendance up to `$now` — the hours that have
      * fully elapsed within the presence window. These form the compliance denominator.
      *
      * @return Collection<int, Carbon>
      */
-    public static function completedSlots(Attendance $attendance, ?Carbon $now = null): Collection
+    public static function completedSlots(Attendance $attendance, ?string $tz = null, ?Carbon $nowLocal = null): Collection
     {
-        $now ??= now();
+        $tz = $tz ?: config('app.timezone');
+        $nowLocal ??= self::nowIn($tz);
         if (! $attendance->check_in_at) {
             return collect();
         }
 
-        $slot = Carbon::parse($attendance->check_in_at)->startOfHour();
-        $end = $attendance->check_out_at ? Carbon::parse($attendance->check_out_at) : $now;
+        // Bucket the real check-in/out instants into the employee's local hours.
+        $slot = self::localWall($attendance->check_in_at, $tz)->startOfHour();
+        $end = $attendance->check_out_at ? self::localWall($attendance->check_out_at, $tz) : $nowLocal;
         $end = $end->min(self::workEnd(Carbon::parse($attendance->date)));
 
         $slots = collect();
@@ -95,13 +116,13 @@ class WorkStatus
     }
 
     /** The in-progress slot (current hour) while still checked in — "pending", not missed. */
-    public static function currentSlot(Attendance $attendance, ?Carbon $now = null): ?Carbon
+    public static function currentSlot(Attendance $attendance, ?string $tz = null, ?Carbon $nowLocal = null): ?Carbon
     {
-        $now ??= now();
+        $nowLocal ??= self::nowIn($tz ?: config('app.timezone'));
         if (! $attendance->check_in_at || $attendance->check_out_at) {
             return null;
         }
 
-        return self::slotFor($now);
+        return self::slotFor($nowLocal);
     }
 }
