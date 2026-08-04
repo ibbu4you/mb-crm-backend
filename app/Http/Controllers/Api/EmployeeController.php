@@ -20,6 +20,7 @@ class EmployeeController extends Controller
         if ($search = $request->string('search')->trim()->value()) {
             $q->where(function ($w) use ($search) {
                 $w->where('name', 'like', "%{$search}%")
+                    ->orWhere('username', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%");
             });
@@ -42,6 +43,7 @@ class EmployeeController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
+            'username' => ['nullable', 'string', 'max:60', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('users', 'username')],
             'email' => ['required', 'email', 'max:190', Rule::unique('users', 'email')],
             'phone' => ['nullable', 'string', 'max:40'],
             'password' => ['nullable', 'string', 'min:8'],
@@ -61,6 +63,7 @@ class EmployeeController extends Controller
 
         $user = User::create([
             'name' => $data['name'],
+            'username' => $data['username'] ?? null,
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
             'is_active' => $data['is_active'] ?? true,
@@ -86,6 +89,7 @@ class EmployeeController extends Controller
     {
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:120'],
+            'username' => ['nullable', 'string', 'max:60', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('users', 'username')->ignore($employee->id)],
             'email' => ['sometimes', 'email', 'max:190', Rule::unique('users', 'email')->ignore($employee->id)],
             'phone' => ['nullable', 'string', 'max:40'],
             'password' => ['nullable', 'string', 'min:8'],
@@ -98,7 +102,7 @@ class EmployeeController extends Controller
             'denied_permissions.*' => ['string', Rule::exists('permissions', 'name')],
         ]);
 
-        $employee->fill(collect($data)->only(['name', 'email', 'phone', 'is_active'])->toArray());
+        $employee->fill(collect($data)->only(['name', 'username', 'email', 'phone', 'is_active'])->toArray());
         if (! empty($data['password'])) {
             $employee->password = Hash::make($data['password']);
         }
