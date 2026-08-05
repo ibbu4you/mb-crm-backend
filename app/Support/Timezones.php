@@ -22,15 +22,10 @@ class Timezones
         return self::BUSINESS;
     }
 
+    // Only the countries the team actually operates in. Add more here if needed.
     public const ZONES = [
         'Asia/Kuala_Lumpur' => 'Malaysia',
         'Asia/Kolkata' => 'India',
-        'Asia/Singapore' => 'Singapore',
-        'Asia/Jakarta' => 'Indonesia (WIB)',
-        'Asia/Manila' => 'Philippines',
-        'Asia/Dubai' => 'UAE',
-        'Europe/London' => 'United Kingdom',
-        'America/New_York' => 'US (Eastern)',
     ];
 
     /** @return array<int, string> valid IANA zone identifiers */
