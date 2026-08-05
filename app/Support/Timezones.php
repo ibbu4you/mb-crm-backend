@@ -9,6 +9,19 @@ namespace App\Support;
  */
 class Timezones
 {
+    /**
+     * The company's base timezone. Used as the fallback for employees without an
+     * explicit timezone AND as the anchor for all attendance / work-status wall-clock
+     * math — deliberately NOT config('app.timezone'), because the live server runs in
+     * UTC. Anchoring here keeps Malaysian employees on KL regardless of the server tz.
+     */
+    public const BUSINESS = 'Asia/Kuala_Lumpur';
+
+    public static function business(): string
+    {
+        return self::BUSINESS;
+    }
+
     public const ZONES = [
         'Asia/Kuala_Lumpur' => 'Malaysia',
         'Asia/Kolkata' => 'India',

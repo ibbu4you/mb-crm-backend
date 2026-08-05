@@ -79,7 +79,9 @@ class User extends Authenticatable
     /** The employee's effective IANA timezone (falls back to the app default). */
     public function tz(): string
     {
-        return $this->timezone ?: config('app.timezone');
+        // Fall back to the company base tz (Malaysia), NOT config('app.timezone') —
+        // the live server runs in UTC, so config would wrongly give UTC here.
+        return $this->timezone ?: \App\Support\Timezones::business();
     }
 
     /** Role + direct permissions, minus any explicitly denied for this user. */

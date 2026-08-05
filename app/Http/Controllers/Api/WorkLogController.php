@@ -355,7 +355,7 @@ class WorkLogController extends Controller
 
     private function daySummary(?User $user, ?Attendance $att, Carbon $date, ?string $tz = null): array
     {
-        $tz = $tz ?: ($user?->tz() ?? config('app.timezone'));
+        $tz = $tz ?: ($user?->tz() ?? \App\Support\Timezones::business());
         if (! $user || ! $att || ! $att->check_in_at) {
             return ['checked_in' => false, 'date' => $date->toDateString(), 'modes' => WorkStatus::modes()];
         }

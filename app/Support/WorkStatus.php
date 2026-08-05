@@ -79,10 +79,10 @@ class WorkStatus
         return self::localWall(now(), $tz);
     }
 
-    /** Re-express a true instant as an employee-local wall clock (app-tz-labelled). */
+    /** Re-express a true instant as an employee-local wall clock (naive digits). */
     public static function localWall(Carbon $instant, ?string $tz = null): Carbon
     {
-        $tz = $tz ?: config('app.timezone');
+        $tz = $tz ?: Timezones::business();
 
         return Carbon::parse($instant->copy()->setTimezone($tz)->format('Y-m-d H:i:s'));
     }
@@ -95,7 +95,7 @@ class WorkStatus
      */
     public static function completedSlots(Attendance $attendance, ?string $tz = null, ?Carbon $nowLocal = null): Collection
     {
-        $tz = $tz ?: config('app.timezone');
+        $tz = $tz ?: Timezones::business();
         $nowLocal ??= self::nowIn($tz);
         if (! $attendance->check_in_at) {
             return collect();
@@ -118,7 +118,7 @@ class WorkStatus
     /** The in-progress slot (current hour) while still checked in — "pending", not missed. */
     public static function currentSlot(Attendance $attendance, ?string $tz = null, ?Carbon $nowLocal = null): ?Carbon
     {
-        $nowLocal ??= self::nowIn($tz ?: config('app.timezone'));
+        $nowLocal ??= self::nowIn($tz ?: Timezones::business());
         if (! $attendance->check_in_at || $attendance->check_out_at) {
             return null;
         }
