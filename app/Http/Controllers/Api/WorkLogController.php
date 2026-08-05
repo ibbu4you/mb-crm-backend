@@ -37,7 +37,7 @@ class WorkLogController extends Controller
     {
         $data = $request->validate([
             'mode' => ['required', Rule::in(array_keys(WorkStatus::MODES))],
-            'note' => ['nullable', 'string', 'max:1000'],
+            'note' => ['required', 'string', 'max:1000'],
             'link_type' => ['nullable', Rule::in(WorkStatus::LINK_TYPES)],
             'link_id' => ['nullable', 'integer'],
         ]);
@@ -183,7 +183,7 @@ class WorkLogController extends Controller
 
         $data = $request->validate([
             'mode' => ['required', Rule::in(array_keys(WorkStatus::MODES))],
-            'note' => ['nullable', 'string', 'max:1000'],
+            'note' => ['required', 'string', 'max:1000'],
             'link_type' => ['nullable', Rule::in(WorkStatus::LINK_TYPES)],
             'link_id' => ['nullable', 'integer'],
         ]);
