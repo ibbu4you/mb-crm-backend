@@ -10,6 +10,7 @@ use App\Models\Contact;
 use App\Models\Lead;
 use App\Models\User;
 use App\Models\WorkLog;
+use App\Support\Timezones;
 use App\Support\WorkStatus;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -339,11 +340,13 @@ class WorkLogController extends Controller
             }
 
             $data['days'] = $days->values();
-            $data['entries'] = $userLogs->sortByDesc('slot_at')->map(fn ($l) => [
+            $data['entries'] = $userLogs->sortByDesc('created_at')->map(fn ($l) => [
                 'id' => $l->id,
                 'date' => $l->log_date->toDateString(),
                 'hour' => $l->slot_at->format('H:i'),
-                'hour_business' => WorkStatus::businessHour($l->slot_at, $empTz),
+                // Exact logged time in both offices, from the true instant (created_at).
+                'hour_my' => $l->created_at->copy()->setTimezone(Timezones::MALAYSIA)->format('H:i'),
+                'hour_in' => $l->created_at->copy()->setTimezone(Timezones::INDIA)->format('H:i'),
                 'mode' => $l->mode,
                 'mode_label' => WorkStatus::label($l->mode),
                 'mode_color' => WorkStatus::color($l->mode),
@@ -417,10 +420,16 @@ class WorkLogController extends Controller
 
     private function row(WorkLog $l, ?string $tz = null): array
     {
+        // Exact clock time the entry was logged, in the viewer-relevant zone. created_at
+        // is a true instant, so this is always correct — even for rows written while the
+        // server ran in UTC — and shows the real minute, not just the hour bucket.
+        $displayTz = $tz ?: ($l->relationLoaded('user') && $l->user ? $l->user->tz() : Timezones::business());
+
         return [
             'id' => $l->id,
             'slot_at' => $l->slot_at->toIso8601String(),
             'hour' => $l->slot_at->format('H:i'),
+            'time' => $l->created_at->copy()->setTimezone($displayTz)->format('H:i'),
             'hour_business' => WorkStatus::businessHour($l->slot_at, $tz),
             'mode' => $l->mode,
             'mode_label' => WorkStatus::label($l->mode),

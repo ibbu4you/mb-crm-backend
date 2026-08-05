@@ -17,6 +17,11 @@ class Timezones
      */
     public const BUSINESS = 'Asia/Kuala_Lumpur';
 
+    // The two offices, for the admin's dual "MY · IN" time display.
+    public const MALAYSIA = 'Asia/Kuala_Lumpur';
+
+    public const INDIA = 'Asia/Kolkata';
+
     public static function business(): string
     {
         return self::BUSINESS;
