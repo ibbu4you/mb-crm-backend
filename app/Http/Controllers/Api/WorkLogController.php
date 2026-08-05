@@ -134,7 +134,7 @@ class WorkLogController extends Controller
                 'submitted' => $summary['submitted'] ?? 0,
                 'expected' => $summary['expected'] ?? 0,
                 'current_filled' => $summary['current_filled'] ?? false,
-                'latest' => $latest ? $this->row($latest) : null,
+                'latest' => $latest ? $this->row($latest, $tz) : null,
                 'minutes_since_update' => $latest ? (int) $latest->created_at->diffInMinutes(now()) : null,
             ];
         })->values();
@@ -310,7 +310,9 @@ class WorkLogController extends Controller
 
         // A single-employee report gets a day-by-day breakdown and their entries.
         if ($userId) {
+            $empTz = User::find($userId)?->tz();
             $data['employee'] = $names[$userId] ?? 'Employee';
+            $data['employee_timezone'] = $empTz;
             $userAtts = $atts->where('user_id', $userId)->keyBy(fn ($a) => Carbon::parse($a->date)->toDateString());
             $userLogs = $logsByUser->get($userId) ?? collect();
             $logsByDate = $userLogs->groupBy(fn ($l) => $l->log_date->toDateString());
@@ -341,6 +343,7 @@ class WorkLogController extends Controller
                 'id' => $l->id,
                 'date' => $l->log_date->toDateString(),
                 'hour' => $l->slot_at->format('H:i'),
+                'hour_business' => WorkStatus::businessHour($l->slot_at, $empTz),
                 'mode' => $l->mode,
                 'mode_label' => WorkStatus::label($l->mode),
                 'mode_color' => WorkStatus::color($l->mode),
@@ -412,12 +415,13 @@ class WorkLogController extends Controller
         ];
     }
 
-    private function row(WorkLog $l): array
+    private function row(WorkLog $l, ?string $tz = null): array
     {
         return [
             'id' => $l->id,
             'slot_at' => $l->slot_at->toIso8601String(),
             'hour' => $l->slot_at->format('H:i'),
+            'hour_business' => WorkStatus::businessHour($l->slot_at, $tz),
             'mode' => $l->mode,
             'mode_label' => WorkStatus::label($l->mode),
             'mode_color' => WorkStatus::color($l->mode),

@@ -88,6 +88,23 @@ class WorkStatus
     }
 
     /**
+     * The Malaysia (business) equivalent H:i of a naive employee-local slot, for the
+     * admin's dual-time display. Returns null when the employee already runs on the
+     * business tz (so the UI shows a single time for local staff). $naiveLocal carries
+     * the employee's wall-clock digits (e.g. a stored slot_at read back).
+     */
+    public static function businessHour(Carbon $naiveLocal, ?string $employeeTz): ?string
+    {
+        $employeeTz = $employeeTz ?: Timezones::business();
+        if ($employeeTz === Timezones::business()) {
+            return null;
+        }
+
+        return Carbon::parse($naiveLocal->format('Y-m-d H:i:s'), $employeeTz)
+            ->setTimezone(Timezones::business())->format('H:i');
+    }
+
+    /**
      * Completed hourly slots for an attendance up to `$now` — the hours that have
      * fully elapsed within the presence window. These form the compliance denominator.
      *

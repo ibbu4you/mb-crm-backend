@@ -8,6 +8,7 @@ use App\Models\OfficeLocation;
 use App\Models\Setting;
 use App\Models\User;
 use App\Services\GeocodingService;
+use App\Support\Timezones;
 use App\Support\WorkStatus;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -207,11 +208,15 @@ class AttendanceController extends Controller
         $dayKeys = array_column($days, 'date');
 
         $records = Attendance::whereBetween('date', [$start->toDateString(), $end->toDateString()])->get()->groupBy('user_id');
-        $employees = User::where('is_active', true)->orderBy('name')->get()->map(function (User $u) use ($records, $dayKeys) {
+        $business = Timezones::business();
+        $employees = User::where('is_active', true)->orderBy('name')->get()->map(function (User $u) use ($records, $dayKeys, $business) {
             $recs = ($records->get($u->id) ?? collect());
             $byDate = $recs->keyBy(fn ($r) => $r->date->toDateString());
             $checkedIn = $recs->whereNotNull('check_in_at');
             $minutes = (int) $recs->sum('work_minutes');
+            // Non-Malaysian employees also get the Malaysia (HQ) equivalent time.
+            $utz = $u->tz();
+            $dual = $utz !== $business;
 
             $cells = [];
             foreach ($dayKeys as $d) {
@@ -219,8 +224,10 @@ class AttendanceController extends Controller
                 $cells[$d] = $r ? [
                     'status' => $r->status,
                     'on_site' => (bool) $r->on_site,
-                    'in' => $r->check_in_at?->copy()->setTimezone($u->tz())->format('H:i'),
-                    'out' => $r->check_out_at?->copy()->setTimezone($u->tz())->format('H:i'),
+                    'in' => $r->check_in_at?->copy()->setTimezone($utz)->format('H:i'),
+                    'out' => $r->check_out_at?->copy()->setTimezone($utz)->format('H:i'),
+                    'in_business' => $dual ? $r->check_in_at?->copy()->setTimezone($business)->format('H:i') : null,
+                    'out_business' => $dual ? $r->check_out_at?->copy()->setTimezone($business)->format('H:i') : null,
                 ] : null;
             }
 
