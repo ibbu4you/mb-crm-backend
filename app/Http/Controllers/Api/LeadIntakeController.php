@@ -8,6 +8,7 @@ use App\Models\Lead;
 use App\Models\LeadType;
 use App\Support\Notifier;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
  * Public web/Elementor lead intake. Deduplicates on normalized phone/email so
@@ -29,7 +30,10 @@ class LeadIntakeController extends Controller
             'city' => ['nullable', 'string', 'max:120'],
             'lead_type' => ['nullable', 'string', 'max:120'],
             'message' => ['nullable', 'string', 'max:5000'],
+            'source' => ['nullable', Rule::in(['whatsapp', 'web', 'field', 'manual', 'referral'])],
         ]);
+
+        $source = $data['source'] ?? 'web';
 
         $phone = Contact::normalizePhone($data['phone'] ?? null);
         $contact = Contact::query()
@@ -45,7 +49,7 @@ class LeadIntakeController extends Controller
                 'phone' => $data['phone'] ?? null,
                 'industry' => $data['industry'] ?? null,
                 'city' => $data['city'] ?? null,
-                'source' => 'web',
+                'source' => $source,
             ]);
         }
 
@@ -60,7 +64,7 @@ class LeadIntakeController extends Controller
             'title' => $data['lead_type'] ?? 'Website enquiry',
             'pipeline_stage' => 'intake',
             'status' => 'active',
-            'source' => 'web',
+            'source' => $source,
             'notes' => $data['message'] ?? null,
             'last_activity_at' => now(),
         ]);
