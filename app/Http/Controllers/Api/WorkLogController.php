@@ -106,9 +106,10 @@ class WorkLogController extends Controller
 
         $logs = WorkLog::with('user')->where('user_id', $userId)
             ->whereBetween('log_date', [$from->toDateString(), $to->toDateString()])
-            ->orderByDesc('slot_at')->get();
+            // Order by the actual submission instant so the list matches the exact times shown.
+            ->orderByDesc('created_at')->get();
 
-        return response()->json(['data' => $logs->map(fn ($l) => $this->row($l))]);
+        return response()->json(['data' => $logs->map(fn ($l) => $this->row($l, $utz))]);
     }
 
     // ---- Admin / manager side ----
