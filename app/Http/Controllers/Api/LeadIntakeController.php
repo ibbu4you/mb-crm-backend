@@ -8,7 +8,6 @@ use App\Models\Lead;
 use App\Models\LeadType;
 use App\Support\Notifier;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 /**
  * Public web/Elementor lead intake. Deduplicates on normalized phone/email so
@@ -30,7 +29,7 @@ class LeadIntakeController extends Controller
             'city' => ['nullable', 'string', 'max:120'],
             'lead_type' => ['nullable', 'string', 'max:120'],
             'message' => ['nullable', 'string', 'max:5000'],
-            'source' => ['nullable', Rule::in(['whatsapp', 'web', 'field', 'manual', 'referral'])],
+            'source' => ['nullable', 'string', 'max:40'],
         ]);
 
         $source = $data['source'] ?? 'web';

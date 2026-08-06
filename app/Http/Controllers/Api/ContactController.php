@@ -136,7 +136,7 @@ class ContactController extends Controller
             'industry' => ['nullable', 'string', 'max:120'],
             'city' => ['nullable', 'string', 'max:120'],
             'address' => ['nullable', 'string', 'max:255'],
-            'source' => ['nullable', Rule::in(['whatsapp', 'web', 'field', 'manual', 'referral'])],
+            'source' => ['nullable', 'string', 'max:40'],
             'owner_id' => ['nullable', 'exists:users,id'],
             'notes' => ['nullable', 'string'],
         ]);

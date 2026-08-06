@@ -200,7 +200,10 @@ class LeadController extends Controller
     {
         return response()->json([
             'stages' => Pipeline::catalog(),
-            'sources' => ['whatsapp', 'web', 'field', 'manual', 'referral'],
+            // Standard channels + any custom sources already in use, so the filter/dropdown lists them all.
+            'sources' => \App\Models\Lead::query()->distinct()->pluck('source')
+                ->merge(['whatsapp', 'web', 'field', 'manual', 'referral'])
+                ->filter()->unique()->sort()->values(),
             'statuses' => ['active', 'won', 'lost', 'dormant'],
             // Users a lead can be assigned to (the sales team).
             'salespeople' => User::permission('leads.view')->where('is_active', true)
@@ -224,7 +227,7 @@ class LeadController extends Controller
             'title' => ['nullable', 'string', 'max:190'],
             'lead_type_id' => ['nullable', 'exists:lead_types,id'],
             'pipeline_stage' => ['nullable', Rule::in(Pipeline::all())],
-            'source' => ['nullable', Rule::in(['whatsapp', 'web', 'field', 'manual', 'referral'])],
+            'source' => ['nullable', 'string', 'max:40'],
             'revenue_potential' => ['nullable', 'numeric', 'min:0'],
             'expected_close_date' => ['nullable', 'date'],
             'owner_id' => ['nullable', 'exists:users,id'],
@@ -284,7 +287,7 @@ class LeadController extends Controller
         $data = $request->validate([
             'title' => ['nullable', 'string', 'max:190'],
             'lead_type_id' => ['nullable', 'exists:lead_types,id'],
-            'source' => ['nullable', Rule::in(['whatsapp', 'web', 'field', 'manual', 'referral'])],
+            'source' => ['nullable', 'string', 'max:40'],
             'revenue_potential' => ['nullable', 'numeric', 'min:0'],
             'expected_close_date' => ['nullable', 'date'],
             'owner_id' => ['nullable', 'exists:users,id'],
