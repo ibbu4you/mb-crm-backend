@@ -94,6 +94,32 @@ class AttendanceController extends Controller
         return response()->json(['data' => $this->row($a)]);
     }
 
+    /** Manager action: undo a checkout so the employee can keep working (mistaken checkout). */
+    public function reopen(Request $request)
+    {
+        $data = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'date' => ['required', 'date'],
+        ]);
+
+        $a = Attendance::where('user_id', $data['user_id'])
+            ->whereDate('date', Carbon::parse($data['date'])->toDateString())->first();
+        abort_if(! $a || ! $a->check_in_at, 422, 'No check-in found for that day.');
+        abort_if(! $a->check_out_at, 422, 'That day is not checked out.');
+
+        $a->fill([
+            'check_out_at' => null, 'work_minutes' => null,
+            'out_lat' => null, 'out_lng' => null, 'out_address' => null, 'out_photo_path' => null,
+        ]);
+        // Undo the checkout's half-day flag (only checkout sets it, from 'present').
+        if ($a->status === 'half_day') {
+            $a->status = 'present';
+        }
+        $a->save();
+
+        return response()->json(['data' => $this->row($a, true), 'message' => 'Day reopened.']);
+    }
+
     /** Own history. */
     public function mine(Request $request)
     {

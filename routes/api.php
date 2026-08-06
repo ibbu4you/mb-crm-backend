@@ -296,6 +296,7 @@ Route::prefix('v1')->group(function () {
             Route::get('attendance/team/export', [AttendanceController::class, 'export']);
         });
         Route::middleware('permission:hrms.attendance.manage')->group(function () {
+            Route::post('attendance/reopen', [AttendanceController::class, 'reopen']);
             Route::post('office-locations', [OfficeLocationController::class, 'store']);
             Route::put('office-locations/{officeLocation}', [OfficeLocationController::class, 'update']);
             Route::delete('office-locations/{officeLocation}', [OfficeLocationController::class, 'destroy']);
