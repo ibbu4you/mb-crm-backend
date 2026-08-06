@@ -27,5 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // API-only backend: an unauthenticated request must return 401 JSON, never
+        // try to redirect to a (non-existent) `login` route — that turned auth
+        // failures into 500s (e.g. opening an export URL in a new tab without a session).
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        });
     })->create();
