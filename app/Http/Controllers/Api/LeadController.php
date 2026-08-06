@@ -151,14 +151,31 @@ class LeadController extends Controller
     public function export(Request $request)
     {
         $q = $this->scoped($request)->with(['contact', 'type', 'owner']);
+        if (! $request->filled('type')) {
+            $this->excludeInterviews($q);
+        }
         if ($stage = $request->input('stage')) {
             $q->where('pipeline_stage', $stage);
+        }
+        if ($status = $request->input('status')) {
+            $q->where('status', $status);
         }
         if ($type = $request->input('type')) {
             $q->where('lead_type_id', $type);
         }
         if ($source = $request->input('source')) {
             $q->where('source', $source);
+        }
+        if ($owner = $request->input('owner')) {
+            $q->where('owner_id', $owner);
+        }
+        if ($search = trim((string) $request->input('search'))) {
+            $q->where(function ($w) use ($search) {
+                $w->where('title', 'like', "%{$search}%")
+                    ->orWhereHas('contact', fn ($c) => $c->where('business_name', 'like', "%{$search}%")
+                        ->orWhere('contact_person', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%"));
+            });
         }
 
         $rows = $q->latest()->get();
