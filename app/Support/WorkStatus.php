@@ -119,7 +119,13 @@ class WorkStatus
         }
 
         // Bucket the real check-in/out instants into the employee's local hours.
-        $slot = self::localWall($attendance->check_in_at, $tz)->startOfHour();
+        $checkIn = self::localWall($attendance->check_in_at, $tz);
+        $slot = $checkIn->copy()->startOfHour();
+        // Skip the partial first hour when they checked in past its halfway point —
+        // e.g. checking in at 08:45 shouldn't mark the 08:00 slot as missed.
+        if ($checkIn->minute >= (int) (self::intervalMinutes() / 2)) {
+            $slot->addMinutes(self::intervalMinutes());
+        }
         $end = $attendance->check_out_at ? self::localWall($attendance->check_out_at, $tz) : $nowLocal;
         $end = $end->min(self::workEnd(Carbon::parse($attendance->date)));
 
