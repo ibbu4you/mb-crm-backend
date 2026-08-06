@@ -374,14 +374,14 @@ class WorkLogController extends Controller
         $logs = WorkLog::where('user_id', $user->id)->whereDate('log_date', $date)->get()
             ->keyBy(fn (WorkLog $l) => $l->slot_at->format('Y-m-d H'));
 
-        $timeline = $completed->map(function (Carbon $slot) use ($logs) {
+        $timeline = $completed->map(function (Carbon $slot) use ($logs, $tz) {
             $log = $logs->get($slot->format('Y-m-d H'));
 
             return [
                 'slot_at' => $slot->toIso8601String(),
                 'hour' => $slot->format('H:i'),
                 'status' => $log ? 'submitted' : 'missed',
-                'log' => $log ? $this->row($log) : null,
+                'log' => $log ? $this->row($log, $tz) : null,
             ];
         });
 
@@ -392,7 +392,7 @@ class WorkLogController extends Controller
                 'slot_at' => $current->toIso8601String(),
                 'hour' => $current->format('H:i'),
                 'status' => $log ? 'submitted' : 'pending',
-                'log' => $log ? $this->row($log) : null,
+                'log' => $log ? $this->row($log, $tz) : null,
             ];
         }
 
@@ -413,7 +413,7 @@ class WorkLogController extends Controller
             'missed' => $total - $submitted,
             'timeline' => $timeline->values(),
             'pending' => $pending,
-            'latest' => $latest ? $this->row($latest) : null,
+            'latest' => $latest ? $this->row($latest, $tz) : null,
             'modes' => WorkStatus::modes(),
         ];
     }
