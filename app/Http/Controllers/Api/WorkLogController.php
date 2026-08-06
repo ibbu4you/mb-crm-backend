@@ -51,19 +51,21 @@ class WorkLogController extends Controller
         $slot = WorkStatus::slotFor($nowLocal);
         $late = $nowLocal->gt($slot->copy()->addMinutes(WorkStatus::intervalMinutes()));
 
-        $log = WorkLog::updateOrCreate(
-            ['user_id' => $request->user()->id, 'slot_at' => $slot],
-            [
-                'attendance_id' => $att->id,
-                'log_date' => $slot->toDateString(),
-                'mode' => $data['mode'],
-                'note' => $data['note'] ?? null,
-                'link_type' => $data['link_type'] ?? null,
-                'link_id' => $data['link_type'] ? ($data['link_id'] ?? null) : null,
-                'link_label' => $this->resolveLink($data['link_type'] ?? null, $data['link_id'] ?? null),
-                'is_late' => $late,
-            ],
-        );
+        // A fresh row per submit — employees can log several updates within the same
+        // hour; each keeps its own exact time (created_at). The hour still counts once
+        // toward compliance.
+        $log = WorkLog::create([
+            'user_id' => $request->user()->id,
+            'slot_at' => $slot,
+            'attendance_id' => $att->id,
+            'log_date' => $slot->toDateString(),
+            'mode' => $data['mode'],
+            'note' => $data['note'] ?? null,
+            'link_type' => $data['link_type'] ?? null,
+            'link_id' => $data['link_type'] ? ($data['link_id'] ?? null) : null,
+            'link_label' => $this->resolveLink($data['link_type'] ?? null, $data['link_id'] ?? null),
+            'is_late' => $late,
+        ]);
 
         // Clear any pending reminder for this slot.
         if ($att->last_reminder_slot_at && Carbon::parse($att->last_reminder_slot_at)->eq($slot)) {
@@ -271,7 +273,8 @@ class WorkLogController extends Controller
         $employees = $userIds->map(function ($uid) use ($expectedByUser, $logsByUser, $names, $interval) {
             $expected = (int) ($expectedByUser[$uid] ?? 0);
             $userLogs = $logsByUser->get($uid) ?? collect();
-            $submitted = $userLogs->count();
+            // Count each hour once even if logged multiple times.
+            $submitted = $userLogs->unique(fn ($l) => $l->log_date->toDateString().' '.$l->slot_at->format('H'))->count();
             $effective = min($submitted, $expected);
 
             return [
@@ -291,7 +294,7 @@ class WorkLogController extends Controller
         ])->values();
 
         $expectedTotal = array_sum($expectedByUser);
-        $submittedTotal = $logs->count();
+        $submittedTotal = $logs->unique(fn ($l) => $l->user_id.'|'.$l->log_date->toDateString().'|'.$l->slot_at->format('H'))->count();
 
         $data = [
             'range' => ['from' => $from->toDateString(), 'to' => $to->toDateString(), 'label' => $label],
@@ -330,7 +333,7 @@ class WorkLogController extends Controller
                 $ln = WorkStatus::nowIn($utz);
                 $end = Carbon::parse($att->date)->toDateString() === $ln->toDateString() ? $ln : Carbon::parse($att->date)->endOfDay();
                 $expected = WorkStatus::completedSlots($att, $utz, $end)->count();
-                $submitted = ($logsByDate->get($d) ?? collect())->count();
+                $submitted = ($logsByDate->get($d) ?? collect())->unique(fn ($l) => $l->slot_at->format('H'))->count();
                 $days->push([
                     'date' => $d,
                     'expected' => $expected,
